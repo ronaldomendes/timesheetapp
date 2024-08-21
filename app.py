@@ -1,18 +1,19 @@
-"""
-# This is a sample Python script.
+import streamlit as st
 
-# Press Shift+F10 to execute it or replace it with your code.
-# Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
-"""
+st.set_page_config(page_title='Time Sheet App')
 
+st.title('Time Sheet App')
+st.subheader('Formulário de cadastro')
 
-def print_hi(name):
-    """Use a breakpoint in the code line below to debug your script."""
-    print(f'Hi, {name}')  # Press Ctrl+F8 to toggle the breakpoint.
+col1, col2 = st.columns(2)
+with col1:
+    st.date_input('Data de cadastro', format='DD/MM/YYYY',
+                  help='Inclua uma data para o cadastro de ponto')
+with col2:
+    st.time_input('Hora de cadastro', value='now', step=60,
+                  help='Inclua um horário para o cadastro de ponto')
 
-
-# Press the green button in the gutter to run the script.
-if __name__ == '__main__':
-    print_hi('PyCharm')
-
-# See PyCharm help at https://www.jetbrains.com/help/pycharm/
+st.selectbox('Período diário', placeholder='Escolha uma opção',
+             options=['Início', 'Almoço', 'Término'])
+st.checkbox('Período de deploy')
+st.button(label='Cadastrar', use_container_width=True)
