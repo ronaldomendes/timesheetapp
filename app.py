@@ -1,6 +1,115 @@
+import sqlite3
+from datetime import timedelta, datetime
+
 import streamlit as st
 
-st.set_page_config(page_title='Time Sheet App')
+conn = sqlite3.connect('timesheet.db')
+cursor = conn.cursor()
+
+
+def database_healthcheck():
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS TIMESHEET (REGISTER_DATE TEXT, BEGIN_TIME TEXT,
+        BEGIN_LUNCH TEXT, END_LUNCH TEXT, END_TIME TEXT, BEGIN_EXTRA TEXT, 
+        END_EXTRA TEXT, OBSERVATIONS TEXT)
+        """)
+
+
+def select_all_data(period_flag):
+    database_healthcheck()
+    if period_flag:
+        param = datetime.now().date().strftime('%Y-%m')
+        result = conn.execute("""SELECT * FROM TIMESHEET WHERE REGISTER_DATE LIKE ? 
+            ORDER BY REGISTER_DATE""", (f'{param}%',)).fetchall()
+    else:
+        result = conn.execute("SELECT * FROM TIMESHEET ORDER BY REGISTER_DATE").fetchall()
+
+    if result:
+        st.dataframe(result, use_container_width=True,
+                     column_config={
+                         '0': 'Data',
+                         '1': 'Início - Trabalho',
+                         '2': 'Início - Almoço',
+                         '3': 'Término - Almoço',
+                         '4': 'Término - Trabalho',
+                         '5': 'Início - Extra',
+                         '6': 'Término - Extra',
+                         '7': 'Observações'
+                     })
+    else:
+        st.error('Nenhum registro cadastrado!')
+
+
+def select_by_date(form_date):
+    return conn.execute("SELECT * FROM TIMESHEET WHERE REGISTER_DATE = :date",
+                        {'date': form_date}).fetchone()
+
+
+def set_register_date(form_date, form_time, form_obs):
+    result = select_by_date(form_date)
+    if not result:
+        conn.execute("""INSERT INTO TIMESHEET (REGISTER_DATE, BEGIN_TIME, OBSERVATIONS) 
+        VALUES (?, ?, ?)""", (str(form_date), str(form_time), form_obs))
+    else:
+        conn.execute("""UPDATE TIMESHEET SET BEGIN_TIME = ?, OBSERVATIONS = ? 
+            WHERE REGISTER_DATE = ?""", (str(form_time), form_obs, str(form_date)))
+    conn.commit()
+    st.toast(':green[O dia está começando]')
+
+
+def set_end_date(form_date, form_time, form_obs):
+    result = select_by_date(form_date)
+    if not result:
+        conn.execute("""INSERT INTO TIMESHEET (REGISTER_DATE, END_TIME, OBSERVATIONS) 
+        VALUES (?, ?, ?)""", (str(form_date), str(form_time), form_obs))
+    else:
+        conn.execute("""UPDATE TIMESHEET SET END_TIME = ?, OBSERVATIONS = ? 
+            WHERE REGISTER_DATE = ?""", (str(form_time), form_obs, str(form_date)))
+    conn.commit()
+    st.toast(':green[Sextou, casseta!]')
+
+
+def set_lunch_time(form_date, form_time, form_obs):
+    result = select_by_date(form_date)
+    begin_lunch = str(form_time)
+    end_lunch = str(datetime.strptime(str(form_time), '%H:%M:%S') + timedelta(hours=1))[11:19]
+
+    if not result:
+        conn.execute("""INSERT INTO TIMESHEET (REGISTER_DATE, BEGIN_LUNCH, END_LUNCH, OBSERVATIONS) 
+            VALUES (?, ?, ?, ?)""", (str(form_date), begin_lunch, end_lunch, form_obs))
+    else:
+        conn.execute("""UPDATE TIMESHEET SET BEGIN_LUNCH = ?, END_LUNCH = ?, OBSERVATIONS = ? 
+            WHERE REGISTER_DATE = ?""", (begin_lunch, end_lunch, form_obs, str(form_date)))
+    conn.commit()
+    st.toast(':orange[Volto em uma hora]')
+
+
+def set_begin_extra(form_date, form_time, form_obs):
+    result = select_by_date(form_date)
+    if not result:
+        conn.execute("""INSERT INTO TIMESHEET (REGISTER_DATE, BEGIN_EXTRA, OBSERVATIONS) 
+            VALUES (?, ?, ?, ?)""", (str(form_date), str(form_time), form_obs))
+    else:
+        conn.execute("""UPDATE TIMESHEET SET BEGIN_EXTRA = ?, OBSERVATIONS = ? 
+            WHERE REGISTER_DATE = ?""", (str(form_time), form_obs, str(form_date)))
+    conn.commit()
+    st.toast(':red[Hora do trabalho noturno]')
+
+
+def set_end_extra(form_date, form_time, form_obs):
+    result = select_by_date(form_date)
+    if not result:
+        conn.execute("""INSERT INTO TIMESHEET (REGISTER_DATE, END_EXTRA, OBSERVATIONS) 
+            VALUES (?, ?, ?, ?)""", (str(form_date), str(form_time), form_obs))
+    else:
+        conn.execute("""UPDATE TIMESHEET SET END_EXTRA = ?, OBSERVATIONS = ? 
+            WHERE REGISTER_DATE = ?""", (str(form_time), form_obs, str(form_date)))
+    conn.commit()
+    st.toast(':red[A noite é uma criança!]')
+
+
+st.set_page_config(page_title='Time Sheet App', layout='wide')
+st.markdown('<style>div.block-container{ padding: 1rem; }</style>', unsafe_allow_html=True)
 
 st.title('Time Sheet App')
 st.subheader('Formulário de cadastro')
@@ -14,18 +123,23 @@ with st.form('registration_form', clear_on_submit=True, border=0):
 
     period = st.selectbox('Período diário', placeholder='Escolha uma opção',
                           options=['Início', 'Almoço', 'Término'])
-    deploy = st.checkbox('Período de deploy')
+    deploy = st.checkbox('Período extra')
     obs = st.text_input('Observações')
     submit = st.form_submit_button(label='Cadastrar', use_container_width=True)
 
 if submit:
     if period == 'Início' and not deploy:
-        st.success('O dia está começando')
+        set_register_date(date, time, obs)
     elif period == 'Início' and deploy:
-        st.error('Hora do trabalho noturno')
+        set_begin_extra(date, time, obs)
     elif period == 'Almoço':
-        st.warning('Volto em uma hora')
+        set_lunch_time(date, time, obs)
     elif period == 'Término' and not deploy:
-        st.success('Sextou, casseta!')
+        set_end_date(date, time, obs)
     elif period == 'Término' and deploy:
-        st.error('A noite é uma criança!')
+        set_end_extra(date, time, obs)
+
+st.subheader('Folha de ponto')
+flag = st.checkbox('Mensal', value=True)
+
+select_all_data(flag)
