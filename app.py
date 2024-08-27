@@ -25,17 +25,18 @@ def select_all_data(period_flag):
         result = conn.execute("SELECT * FROM TIMESHEET ORDER BY REGISTER_DATE").fetchall()
 
     if result:
-        st.dataframe(result, use_container_width=True,
-                     column_config={
-                         '0': 'Data',
-                         '1': 'Início - Trabalho',
-                         '2': 'Início - Almoço',
-                         '3': 'Término - Almoço',
-                         '4': 'Término - Trabalho',
-                         '5': 'Início - Extra',
-                         '6': 'Término - Extra',
-                         '7': 'Observações'
-                     })
+        with st.container(height=600):
+            st.dataframe(result, use_container_width=True,
+                         column_config={
+                             '0': 'Data',
+                             '1': 'Início - Trabalho',
+                             '2': 'Início - Almoço',
+                             '3': 'Término - Almoço',
+                             '4': 'Término - Trabalho',
+                             '5': 'Início - Extra',
+                             '6': 'Término - Extra',
+                             '7': 'Observações'
+                         })
     else:
         st.error('Nenhum registro cadastrado!')
 
@@ -108,10 +109,10 @@ def set_end_extra(form_date, form_time, form_obs):
     st.toast(':red[A noite é uma criança!]')
 
 
-st.set_page_config(page_title='Time Sheet App', layout='wide')
+st.set_page_config(page_title='Folha de Ponto', layout='wide')
 st.markdown('<style>div.block-container{ padding: 1rem; }</style>', unsafe_allow_html=True)
 
-st.title('Time Sheet App')
+st.title('Folha de Ponto')
 st.subheader('Formulário de cadastro')
 
 with st.form('registration_form', clear_on_submit=True, border=0):
@@ -139,7 +140,10 @@ if submit:
     elif period == 'Término' and deploy:
         set_end_extra(date, time, obs)
 
-st.subheader('Folha de ponto')
-flag = st.checkbox('Mensal', value=True)
+st.divider()
 
-select_all_data(flag)
+st.subheader('Espelho de ponto')
+
+with st.expander('Clique para expandir', expanded=False):
+    flag = st.checkbox('Mensal', value=True)
+    select_all_data(flag)
