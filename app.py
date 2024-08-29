@@ -1,10 +1,19 @@
 import sqlite3
 from datetime import timedelta, datetime
 
+import pandas as pd
 import streamlit as st
 
 conn = sqlite3.connect('timesheet.db')
 cursor = conn.cursor()
+df_config = {'0': 'Data', '1': 'Início - Trabalho', '2': 'Início - Almoço',
+             '3': 'Término - Almoço', '4': 'Término - Trabalho',
+             '5': 'Início - Extra', '6': 'Término - Extra', '7': 'Observações'}
+
+
+@st.cache_data
+def download_report(df):
+    return df.to_csv().encode('utf-8')
 
 
 def database_healthcheck():
@@ -19,26 +28,9 @@ def select_all_data(period_flag):
     database_healthcheck()
     if period_flag:
         param = datetime.now().date().strftime('%Y-%m')
-        result = conn.execute("""SELECT * FROM TIMESHEET WHERE REGISTER_DATE LIKE ? 
+        return conn.execute("""SELECT * FROM TIMESHEET WHERE REGISTER_DATE LIKE ? 
             ORDER BY REGISTER_DATE""", (f'{param}%',)).fetchall()
-    else:
-        result = conn.execute("SELECT * FROM TIMESHEET ORDER BY REGISTER_DATE").fetchall()
-
-    if result:
-        with st.container(height=600):
-            st.dataframe(result, use_container_width=True,
-                         column_config={
-                             '0': 'Data',
-                             '1': 'Início - Trabalho',
-                             '2': 'Início - Almoço',
-                             '3': 'Término - Almoço',
-                             '4': 'Término - Trabalho',
-                             '5': 'Início - Extra',
-                             '6': 'Término - Extra',
-                             '7': 'Observações'
-                         })
-    else:
-        st.error('Nenhum registro cadastrado!')
+    return conn.execute("SELECT * FROM TIMESHEET ORDER BY REGISTER_DATE").fetchall()
 
 
 def select_by_date(form_date):
@@ -126,7 +118,7 @@ with st.form('registration_form', clear_on_submit=True, border=0):
                           options=['Início', 'Almoço', 'Término'])
     deploy = st.checkbox('Período extra')
     obs = st.text_input('Observações')
-    submit = st.form_submit_button(label='Cadastrar', use_container_width=True)
+    submit = st.form_submit_button(label='Cadastrar', use_container_width=True, )
 
 if submit:
     if period == 'Início' and not deploy:
@@ -145,5 +137,17 @@ st.divider()
 st.subheader('Espelho de ponto')
 
 with st.expander('Clique para expandir', expanded=False):
-    flag = st.checkbox('Mensal', value=True)
-    select_all_data(flag)
+    row1, row2, row3 = st.columns(3)
+    flag = row1.checkbox('Mensal', value=True)
+    content = select_all_data(flag)
+
+    if content:
+        with st.container(height=600):
+            st.dataframe(content, use_container_width=True, column_config=df_config)
+    else:
+        st.error('Nenhum registro cadastrado!')
+
+    csv = download_report(pd.DataFrame(content))
+    filename = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+    report = row3.download_button('Baixar CSV', type='primary', data=csv,
+                                  mime="text/csv", file_name=f'{filename}.csv')
