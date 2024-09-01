@@ -147,7 +147,8 @@ with st.expander('Clique para expandir', expanded=False):
     else:
         st.error('Nenhum registro cadastrado!')
 
-    csv = download_report(pd.DataFrame(content))
+    csv = download_report(pd.DataFrame(content, columns=list(df_config.values()))
+                          .set_index(df_config.get("0")))
     filename = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     report = row3.download_button('Baixar CSV', type='primary', data=csv,
                                   mime="text/csv", file_name=f'{filename}.csv')
