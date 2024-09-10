@@ -102,7 +102,10 @@ def set_end_extra(form_date, form_time, form_obs):
 
 
 st.set_page_config(page_title='Folha de Ponto', layout='wide')
-st.markdown('<style>div.block-container{ padding: 1rem; }</style>', unsafe_allow_html=True)
+st.markdown("""<style>
+    div.block-container{ padding: 1rem; }
+    [data-testid="stElementToolbar"] { display: none; }
+    </style>""", unsafe_allow_html=True)
 
 st.title('Folha de Ponto')
 st.subheader('Formulário de cadastro')
@@ -142,7 +145,7 @@ with st.expander('Clique para expandir', expanded=False):
     content = select_all_data(flag)
 
     if content:
-        with st.container(height=600):
+        with st.container(height=450):
             st.dataframe(content, use_container_width=True, column_config=df_config)
     else:
         st.error('Nenhum registro cadastrado!')
