@@ -1,19 +1,17 @@
 import sqlite3
+import sys
 from datetime import timedelta, datetime
 
 import pandas as pd
 import streamlit as st
+from streamlit import runtime
+from streamlit.web import cli
 
 conn = sqlite3.connect('timesheet.db')
 cursor = conn.cursor()
 df_config = {'0': 'Data', '1': 'Início - Trabalho', '2': 'Início - Almoço',
              '3': 'Término - Almoço', '4': 'Término - Trabalho',
              '5': 'Início - Extra', '6': 'Término - Extra', '7': 'Observações'}
-
-
-@st.cache_data
-def download_report(df):
-    return df.to_csv().encode('utf-8')
 
 
 def database_healthcheck():
@@ -101,57 +99,71 @@ def set_end_extra(form_date, form_time, form_obs):
     st.toast(':red[A noite é uma criança!]')
 
 
-st.set_page_config(page_title='Folha de Ponto', layout='wide')
-st.markdown("""<style>
-    div.block-container{ padding: 1rem; }
-    [data-testid="stElementToolbar"] { display: none; }
-    </style>""", unsafe_allow_html=True)
+def main():
+    @st.cache_data
+    def download_report(df):
+        return df.to_csv().encode('utf-8')
 
-st.title('Folha de Ponto')
-st.subheader('Formulário de cadastro')
+    st.set_page_config(page_title='Folha de Ponto', layout='wide')
+    st.markdown("""<style>
+        div.block-container{ padding: 1rem; }
+        [data-testid="stElementToolbar"] { display: none; }
+        </style>""", unsafe_allow_html=True)
 
-with st.form('registration_form', clear_on_submit=True, border=0):
-    col1, col2 = st.columns(2)
-    date = col1.date_input('Data de cadastro', format='DD/MM/YYYY',
-                           help='Inclua uma data para o cadastro de ponto')
-    time = col2.time_input('Hora de cadastro', value='now', step=60,
-                           help='Inclua um horário para o cadastro de ponto')
+    st.title('Folha de Ponto')
+    st.subheader('Formulário de cadastro')
 
-    period = st.selectbox('Período diário', placeholder='Escolha uma opção',
-                          options=['Início', 'Almoço', 'Término'])
-    deploy = st.checkbox('Período extra')
-    obs = st.text_input('Observações')
-    submit = st.form_submit_button(label='Cadastrar', use_container_width=True, )
+    with st.expander(':red[Clique para expandir ou recuar o formulário]', expanded=True):
+        with st.form('registration_form', clear_on_submit=True, border=0):
+            col1, col2 = st.columns(2)
+            date = col1.date_input('Data de cadastro', format='DD/MM/YYYY',
+                                   help='Inclua uma data para o cadastro de ponto')
+            time = col2.time_input('Hora de cadastro', value='now', step=60,
+                                   help='Inclua um horário para o cadastro de ponto')
 
-if submit:
-    if period == 'Início' and not deploy:
-        set_register_date(date, time, obs)
-    elif period == 'Início' and deploy:
-        set_begin_extra(date, time, obs)
-    elif period == 'Almoço':
-        set_lunch_time(date, time, obs)
-    elif period == 'Término' and not deploy:
-        set_end_date(date, time, obs)
-    elif period == 'Término' and deploy:
-        set_end_extra(date, time, obs)
+            period = st.selectbox('Período diário', placeholder='Escolha uma opção',
+                                  options=['Início', 'Almoço', 'Término'])
+            deploy = st.checkbox('Período extra')
+            obs = st.text_input('Observações')
+            submit = st.form_submit_button(label='Cadastrar', use_container_width=True)
 
-st.divider()
+        if submit:
+            if period == 'Início' and not deploy:
+                set_register_date(date, time, obs)
+            elif period == 'Início' and deploy:
+                set_begin_extra(date, time, obs)
+            elif period == 'Almoço':
+                set_lunch_time(date, time, obs)
+            elif period == 'Término' and not deploy:
+                set_end_date(date, time, obs)
+            elif period == 'Término' and deploy:
+                set_end_extra(date, time, obs)
 
-st.subheader('Espelho de ponto')
+    st.divider()
 
-with st.expander('Clique para expandir', expanded=False):
-    row1, row2, row3 = st.columns(3)
-    flag = row1.checkbox('Mensal', value=True)
-    content = select_all_data(flag)
+    st.subheader('Espelho de ponto')
 
-    if content:
-        with st.container(height=450):
-            st.dataframe(content, use_container_width=True, column_config=df_config)
+    with st.expander(':red[Clique para expandir ou recuar o relatório]', expanded=False):
+        row1, row2 = st.columns([3, 1])
+        flag = row1.checkbox('Mensal', value=True)
+        content = select_all_data(flag)
+
+        if content:
+            with st.container(height=450):
+                st.dataframe(content, use_container_width=True, column_config=df_config)
+        else:
+            st.error('Nenhum registro cadastrado!')
+
+        csv = download_report(pd.DataFrame(content, columns=list(df_config.values()))
+                              .set_index(df_config.get("0")))
+        filename = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+        row2.download_button('Baixar CSV', type='primary', data=csv,
+                             mime="text/csv", file_name=f'{filename}.csv')
+
+
+if __name__ == '__main__':
+    if runtime.exists():
+        main()
     else:
-        st.error('Nenhum registro cadastrado!')
-
-    csv = download_report(pd.DataFrame(content, columns=list(df_config.values()))
-                          .set_index(df_config.get("0")))
-    filename = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-    report = row3.download_button('Baixar CSV', type='primary', data=csv,
-                                  mime="text/csv", file_name=f'{filename}.csv')
+        sys.argv = ['streamlit', 'run', sys.argv[0]]
+        sys.exit(cli.main())
