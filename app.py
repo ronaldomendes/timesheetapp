@@ -144,7 +144,7 @@ def main():
     st.subheader('Espelho de ponto')
 
     with st.expander(':red[Clique para expandir ou recuar o relatório]', expanded=False):
-        row1, row2 = st.columns([3, 1])
+        row1, row2 = st.columns([3, 0.5])
         flag = row1.checkbox('Mensal', value=True)
         content = select_all_data(flag)
 
@@ -157,7 +157,7 @@ def main():
         csv = download_report(pd.DataFrame(content, columns=list(df_config.values()))
                               .set_index(df_config.get("0")))
         filename = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-        row2.download_button('Baixar CSV', type='primary', data=csv,
+        row2.download_button('Baixar CSV', type='primary', data=csv, use_container_width=True,
                              mime="text/csv", file_name=f'{filename}.csv')
 
 
