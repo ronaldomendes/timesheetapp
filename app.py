@@ -79,7 +79,7 @@ def set_begin_extra(form_date, form_time, form_obs):
     result = select_by_date(form_date)
     if not result:
         conn.execute("""INSERT INTO TIMESHEET (REGISTER_DATE, BEGIN_EXTRA, OBSERVATIONS) 
-            VALUES (?, ?, ?, ?)""", (str(form_date), str(form_time), form_obs))
+            VALUES (?, ?, ?)""", (str(form_date), str(form_time), form_obs))
     else:
         conn.execute("""UPDATE TIMESHEET SET BEGIN_EXTRA = ?, OBSERVATIONS = ? 
             WHERE REGISTER_DATE = ?""", (str(form_time), form_obs, str(form_date)))
@@ -91,7 +91,7 @@ def set_end_extra(form_date, form_time, form_obs):
     result = select_by_date(form_date)
     if not result:
         conn.execute("""INSERT INTO TIMESHEET (REGISTER_DATE, END_EXTRA, OBSERVATIONS) 
-            VALUES (?, ?, ?, ?)""", (str(form_date), str(form_time), form_obs))
+            VALUES (?, ?, ?)""", (str(form_date), str(form_time), form_obs))
     else:
         conn.execute("""UPDATE TIMESHEET SET END_EXTRA = ?, OBSERVATIONS = ? 
             WHERE REGISTER_DATE = ?""", (str(form_time), form_obs, str(form_date)))
